@@ -71,7 +71,8 @@ final class ValueEvaluator implements Evaluator {
   @Override
   public List<RuleViolation.Builder> evaluate(Value val, boolean failFast)
       throws ExecutionException {
-    if (this.shouldIgnore(val.value(Object.class))) {
+    // Converting the value copies maps and lists, so do it only when needed.
+    if (this.ignoreEmpty && this.shouldIgnore(val.value(Object.class))) {
       return RuleViolation.NO_VIOLATIONS;
     }
     List<RuleViolation.Builder> allViolations = new ArrayList<>();
