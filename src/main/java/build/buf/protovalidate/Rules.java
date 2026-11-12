@@ -51,26 +51,37 @@ final class Rules {
       FieldRules.Builder rulesBuilder,
       ValueEvaluator valueEvaluator) {
     boolean hasNestedRule = valueEvaluator.hasNestedRule();
-    if (fieldDescriptor.isMapField() && !hasNestedRule) {
-      return MapRulesEvaluator.tryBuild(RuleBase.of(valueEvaluator), rulesBuilder);
-    }
-    if (fieldDescriptor.isRepeated() && !hasNestedRule) {
-      return RepeatedRulesEvaluator.tryBuild(RuleBase.of(valueEvaluator), rulesBuilder);
-    }
-    if (!fieldDescriptor.isMapField() && !fieldDescriptor.isRepeated()) {
-      Evaluator scalar = tryBuildScalarRules(fieldDescriptor, rulesBuilder, valueEvaluator);
-      if (scalar == null) {
-        return null;
+    if (!hasNestedRule) {
+      if (fieldDescriptor.isMapField()) {
+        return MapRulesEvaluator.tryBuild(RuleBase.of(valueEvaluator), rulesBuilder);
       }
-      // For wrapper WKTs, fieldDescriptor is the inner "value" field but the runtime value is the
-      // wrapper message. valueEvaluator.getDescriptor() is null for list items and map values.
-      if (DescriptorMappings.expectedWrapperRules(fieldDescriptor.getContainingType().getFullName())
-          != null) {
-        return new WrappedValueEvaluator(fieldDescriptor, scalar);
+      if (fieldDescriptor.isRepeated()) {
+        return RepeatedRulesEvaluator.tryBuild(RuleBase.of(valueEvaluator), rulesBuilder);
       }
-      return scalar;
+    } else if (fieldDescriptor.isMapField()) {
+      // Map fields never reach here with a nested rule: per-key/per-value evaluators are built
+      // against the entry's synthetic key/value field descriptors instead.
+      return null;
     }
-    return null;
+    // Everything else validates one concrete value: a singular field, a repeated field's element
+    // (the descriptor is the repeated field itself, under the items nested rule), or a map
+    // key/value (synthetic entry field descriptors). The scalar evaluators consume the raw
+    // element value, so they apply to all of these uniformly.
+    Evaluator scalar = tryBuildScalarRules(fieldDescriptor, rulesBuilder, valueEvaluator);
+    if (scalar == null) {
+      return null;
+    }
+    // When processWrapperRules recurses with the inner "value" field of a google.protobuf.*Value
+    // wrapper, the value at evaluation time is still the wrapper Message — both for singular
+    // wrapper fields and for elements of repeated wrapper fields. Detect that from the inner
+    // field's containing type and unwrap at evaluation time before delegating. (The outer
+    // ValueEvaluator's descriptor can't be used for this: it's null in the repeated-items
+    // context, and with message-typed native rules like timestamp it would false-positive.)
+    if (DescriptorMappings.expectedWrapperRules(fieldDescriptor.getContainingType().getFullName())
+        != null) {
+      return new WrappedValueEvaluator(fieldDescriptor, scalar);
+    }
+    return scalar;
   }
 
   private static @Nullable Evaluator tryBuildScalarRules(

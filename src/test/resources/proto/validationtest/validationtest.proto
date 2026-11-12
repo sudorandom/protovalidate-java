@@ -494,3 +494,19 @@ message RepeatedWrapperStandardAndCustom {
     }
   }];
 }
+
+// Repeated item-rule fixtures: per-element rules that the native dispatcher
+// should evaluate without falling back to CEL.
+message RepeatedItemInt32Gt {
+  repeated int32 val = 1 [(buf.validate.field).repeated.items.int32.gt = 0];
+}
+
+message RepeatedItemStringMinLen {
+  repeated string val = 1 [(buf.validate.field).repeated.items.string.min_len = 2];
+}
+
+// Item rules on wrapper elements: the per-element value is the wrapper
+// Message and must be unwrapped before the scalar rule applies.
+message RepeatedItemWrapperGt {
+  repeated google.protobuf.Int32Value val = 1 [(buf.validate.field).repeated.items.int32.gt = 0];
+}

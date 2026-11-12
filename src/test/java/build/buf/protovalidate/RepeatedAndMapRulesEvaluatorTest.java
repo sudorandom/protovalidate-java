@@ -20,6 +20,13 @@ import build.buf.protovalidate.exceptions.ValidationException;
 import com.example.noimports.validationtest.ExampleMapMinMax;
 import com.example.noimports.validationtest.ExampleRepeatedMinMax;
 import com.example.noimports.validationtest.ExampleRepeatedUnique;
+import com.example.noimports.validationtest.RepeatedItemInt32Gt;
+import com.example.noimports.validationtest.RepeatedItemStringMinLen;
+import com.example.noimports.validationtest.RepeatedItemWrapperGt;
+import com.google.protobuf.Int32Value;
+import com.google.protobuf.Message;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 /** Validator-level tests for {@link RepeatedRulesEvaluator} and {@link MapRulesEvaluator}. */
@@ -117,5 +124,46 @@ class RepeatedAndMapRulesEvaluatorTest {
             .build();
     assertThat(nativeV.validate(msg).getViolations().get(0).toProto())
         .isEqualTo(celV.validate(msg).getViolations().get(0).toProto());
+  }
+
+  // Item rules are evaluated per element by the native evaluators; their violations must be
+  // identical to the CEL ones: same verdict, same Violation protos, in the same order.
+
+  @Test
+  void repeatedItemInt32MatchesCel() throws ValidationException {
+    assertItemParity(RepeatedItemInt32Gt.newBuilder().addVal(1).addVal(2).build());
+    assertItemParity(RepeatedItemInt32Gt.newBuilder().addVal(1).addVal(0).addVal(-2).build());
+    assertItemParity(RepeatedItemInt32Gt.getDefaultInstance());
+  }
+
+  @Test
+  void repeatedItemStringMatchesCel() throws ValidationException {
+    assertItemParity(RepeatedItemStringMinLen.newBuilder().addVal("ab").addVal("abc").build());
+    assertItemParity(
+        RepeatedItemStringMinLen.newBuilder().addVal("ab").addVal("x").addVal("").build());
+  }
+
+  @Test
+  void repeatedItemWrapperMatchesCel() throws ValidationException {
+    // The element is the wrapper message; it must be unwrapped before the int32 rule applies.
+    assertItemParity(RepeatedItemWrapperGt.newBuilder().addVal(Int32Value.of(1)).build());
+    assertItemParity(
+        RepeatedItemWrapperGt.newBuilder()
+            .addVal(Int32Value.of(1))
+            .addVal(Int32Value.of(0))
+            .build());
+  }
+
+  private static void assertItemParity(Message msg) throws ValidationException {
+    Validator celValidator =
+        ValidatorFactory.newBuilder()
+            .withConfig(Config.newBuilder().setEnableNativeRules(false).build())
+            .build();
+    assertThat(toProtos(nativeValidator().validate(msg)))
+        .containsExactlyElementsOf(toProtos(celValidator.validate(msg)));
+  }
+
+  private static List<build.buf.validate.Violation> toProtos(ValidationResult result) {
+    return result.getViolations().stream().map(Violation::toProto).collect(Collectors.toList());
   }
 }
