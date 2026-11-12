@@ -99,19 +99,22 @@ final class FieldEvaluator implements Evaluator {
     if (message == null) {
       return RuleViolation.NO_VIOLATIONS;
     }
-    boolean hasField = isFieldSet(message, descriptor);
-    if (required && !hasField) {
-      return Collections.singletonList(
-          RuleViolation.newBuilder()
-              .addFirstFieldPathElement(FieldPathUtils.fieldPathElement(descriptor))
-              .addAllRulePathElements(helper.getRulePrefixElements())
-              .addAllRulePathElements(REQUIRED_RULE_PATH.getElementsList())
-              .setRuleId("required")
-              .setMessage("value is required")
-              .setRuleValue(new RuleViolation.FieldValue(true, REQUIRED_DESCRIPTOR)));
-    }
-    if (this.shouldIgnoreEmpty() && !hasField) {
-      return RuleViolation.NO_VIOLATIONS;
+    // Only required and ignore-empty fields need the presence check.
+    if (required || this.shouldIgnoreEmpty()) {
+      boolean hasField = isFieldSet(message, descriptor);
+      if (required && !hasField) {
+        return Collections.singletonList(
+            RuleViolation.newBuilder()
+                .addFirstFieldPathElement(FieldPathUtils.fieldPathElement(descriptor))
+                .addAllRulePathElements(helper.getRulePrefixElements())
+                .addAllRulePathElements(REQUIRED_RULE_PATH.getElementsList())
+                .setRuleId("required")
+                .setMessage("value is required")
+                .setRuleValue(new RuleViolation.FieldValue(true, REQUIRED_DESCRIPTOR)));
+      }
+      if (this.shouldIgnoreEmpty() && !hasField) {
+        return RuleViolation.NO_VIOLATIONS;
+      }
     }
     return valueEvaluator.evaluate(
         new ObjectValue(descriptor, message.getField(descriptor)), failFast);
