@@ -50,15 +50,21 @@ final class MessageEvaluator implements Evaluator {
   @Override
   public List<RuleViolation.Builder> evaluate(Value val, boolean failFast)
       throws ExecutionException {
-    List<RuleViolation.Builder> allViolations = new ArrayList<>();
-    for (Evaluator evaluator : evaluators) {
-      List<RuleViolation.Builder> violations = evaluator.evaluate(val, failFast);
-      if (failFast && !violations.isEmpty()) {
+    List<RuleViolation.Builder> allViolations = null;
+    for (int i = 0; i < evaluators.size(); i++) {
+      List<RuleViolation.Builder> violations = evaluators.get(i).evaluate(val, failFast);
+      if (violations.isEmpty()) {
+        continue;
+      }
+      if (failFast) {
         return violations;
+      }
+      if (allViolations == null) {
+        allViolations = new ArrayList<>(violations.size());
       }
       allViolations.addAll(violations);
     }
-    if (allViolations.isEmpty()) {
+    if (allViolations == null) {
       return RuleViolation.NO_VIOLATIONS;
     }
     return allViolations;

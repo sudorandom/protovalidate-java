@@ -56,7 +56,7 @@ final class ListEvaluator implements Evaluator {
   @Override
   public List<RuleViolation.Builder> evaluate(Value val, boolean failFast)
       throws ExecutionException {
-    List<RuleViolation.Builder> allViolations = new ArrayList<>();
+    List<RuleViolation.Builder> allViolations = null;
     List<Value> repeatedValues = val.repeatedValue();
     for (int i = 0; i < repeatedValues.size(); i++) {
       List<RuleViolation.Builder> violations = itemRules.evaluate(repeatedValues.get(i), failFast);
@@ -69,7 +69,13 @@ final class ListEvaluator implements Evaluator {
       if (failFast && !violations.isEmpty()) {
         return violations;
       }
+      if (allViolations == null) {
+        allViolations = new ArrayList<>(violations.size());
+      }
       allViolations.addAll(violations);
+    }
+    if (allViolations == null) {
+      return RuleViolation.NO_VIOLATIONS;
     }
     return allViolations;
   }
