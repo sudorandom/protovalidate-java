@@ -37,11 +37,6 @@ import java.util.concurrent.ConcurrentMap;
 /** Defines custom function overloads (the implementation). */
 final class CustomOverload {
 
-  // See https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
-  private static final Pattern EMAIL_REGEX =
-      Pattern.compile(
-          "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$");
-
   /**
    * Create a list of custom function overloads.
    *
@@ -508,15 +503,52 @@ final class CustomOverload {
   /**
    * isEmail returns true if addr is a valid email address.
    *
-   * <p>This regex conforms to the definition for a valid email address from the HTML standard. Note
-   * that this standard willfully deviates from RFC 5322, which allows many unexpected forms of
-   * email addresses and will easily match a typographical error.
+   * <p>This conforms to the definition for a valid email address from the HTML standard. Note that
+   * this standard willfully deviates from RFC 5322, which allows many unexpected forms of email
+   * addresses and will easily match a typographical error.
    *
    * @param addr The input string to validate as an email address.
    * @return {@code true} if the input string is a valid email address, {@code false} otherwise.
    */
   static boolean isEmail(String addr) {
-    return EMAIL_REGEX.matcher(addr).matches();
+    int at = addr.indexOf('@');
+    if (at <= 0) {
+      return false;
+    }
+    for (int i = 0; i < at; i++) {
+      char c = addr.charAt(i);
+      if (!isAsciiAlphanumeric(c) && ".!#$%&'*+/=?^_`{|}~-".indexOf(c) < 0) {
+        return false;
+      }
+    }
+    // Domain labels: 1 to 63 letters, digits and inner hyphens.
+    int start = at + 1;
+    while (true) {
+      int end = addr.indexOf('.', start);
+      if (end < 0) {
+        end = addr.length();
+      }
+      if (end == start
+          || end - start > 63
+          || !isAsciiAlphanumeric(addr.charAt(start))
+          || !isAsciiAlphanumeric(addr.charAt(end - 1))) {
+        return false;
+      }
+      for (int i = start + 1; i < end - 1; i++) {
+        char c = addr.charAt(i);
+        if (!isAsciiAlphanumeric(c) && c != '-') {
+          return false;
+        }
+      }
+      if (end == addr.length()) {
+        return true;
+      }
+      start = end + 1;
+    }
+  }
+
+  private static boolean isAsciiAlphanumeric(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
   }
 
   /**

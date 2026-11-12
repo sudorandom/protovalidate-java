@@ -99,10 +99,6 @@ final class StringRulesEvaluator implements Evaluator {
 
   // --- Static regexes (compile once) ---
 
-  private static final Pattern UUID_REGEX =
-      Pattern.compile(
-          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
-  private static final Pattern TUUID_REGEX = Pattern.compile("^[0-9a-fA-F]{32}$");
   private static final Pattern ULID_REGEX =
       Pattern.compile("^[0-7][0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{25}$");
   private static final Pattern HEADER_NAME_REGEX =
@@ -212,7 +208,18 @@ final class StringRulesEvaluator implements Evaluator {
         "value is empty, which is not a valid UUID") {
       @Override
       boolean validate(String s) {
-        return UUID_REGEX.matches(s);
+        // ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$
+        if (s.length() != 36) {
+          return false;
+        }
+        for (int i = 0; i < 36; i++) {
+          char c = s.charAt(i);
+          boolean hyphen = i == 8 || i == 13 || i == 18 || i == 23;
+          if (hyphen ? c != '-' : !isHexDigit(c)) {
+            return false;
+          }
+        }
+        return true;
       }
     },
     TUUID(
@@ -222,7 +229,16 @@ final class StringRulesEvaluator implements Evaluator {
         "value is empty, which is not a valid trimmed UUID") {
       @Override
       boolean validate(String s) {
-        return TUUID_REGEX.matches(s);
+        // ^[0-9a-fA-F]{32}$
+        if (s.length() != 32) {
+          return false;
+        }
+        for (int i = 0; i < 32; i++) {
+          if (!isHexDigit(s.charAt(i))) {
+            return false;
+          }
+        }
+        return true;
       }
     },
     IP_WITH_PREFIXLEN(
@@ -328,6 +344,10 @@ final class StringRulesEvaluator implements Evaluator {
     }
 
     abstract boolean validate(String s);
+  }
+
+  private static boolean isHexDigit(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
   }
 
   // --- Fields ---
