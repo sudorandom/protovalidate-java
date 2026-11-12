@@ -96,6 +96,15 @@ final class Rules {
           return null;
         }
         return numericTryBuild(base, rulesBuilder, config);
+      case MESSAGE:
+        switch (fieldDescriptor.getMessageType().getFullName()) {
+          case "google.protobuf.Timestamp":
+            return TimestampRulesEvaluator.tryBuild(base, rulesBuilder);
+          case "google.protobuf.Duration":
+            return DurationRulesEvaluator.tryBuild(base, rulesBuilder);
+          default:
+            return null;
+        }
       default:
         return null;
     }

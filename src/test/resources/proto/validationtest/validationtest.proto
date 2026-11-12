@@ -17,6 +17,8 @@ syntax = "proto3";
 package validationtest;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 import "validationtest/import_test.proto";
 
@@ -493,4 +495,62 @@ message RepeatedWrapperStandardAndCustom {
       expression: "this > 100"
     }
   }];
+}
+
+// Timestamp/duration rule fixtures for the native temporal evaluators.
+message TimestampGtLt {
+  google.protobuf.Timestamp val = 1 [(buf.validate.field).timestamp = {
+    gt: {seconds: 1000}
+    lt: {seconds: 2000}
+  }];
+}
+
+// Exclusive range: lt < gt means "outside [lt, gt]".
+message TimestampGtLtExclusive {
+  google.protobuf.Timestamp val = 1 [(buf.validate.field).timestamp = {
+    gt: {seconds: 2000}
+    lt: {seconds: 1000}
+  }];
+}
+
+message TimestampConst {
+  google.protobuf.Timestamp val = 1 [(buf.validate.field).timestamp.const = {seconds: 1500}];
+}
+
+// Now-relative rule: stays on the CEL residual, mixed with a native bound.
+message TimestampGteLtNow {
+  google.protobuf.Timestamp val = 1 [(buf.validate.field).timestamp = {
+    gte: {seconds: 1000}
+    lt_now: true
+  }];
+}
+
+message TimestampWithin {
+  google.protobuf.Timestamp val = 1 [(buf.validate.field).timestamp.within = {seconds: 3600}];
+}
+
+message DurationGteLte {
+  google.protobuf.Duration val = 1 [(buf.validate.field).duration = {
+    gte: {seconds: 10}
+    lte: {seconds: 100}
+  }];
+}
+
+message DurationConst {
+  google.protobuf.Duration val = 1 [(buf.validate.field).duration.const = {seconds: 30}];
+}
+
+// Whole seconds only: cel-java renders fractional durations with fixed-width
+// fractions (60.500s) where cel-go, and the native evaluator, trim them (60.5s).
+message DurationInNotIn {
+  google.protobuf.Duration val = 1 [(buf.validate.field).duration = {
+    in: [{seconds: 1}, {seconds: 60}]
+    not_in: [{seconds: 2}]
+  }];
+}
+
+// Item rules on temporal elements: both native paths compose.
+message RepeatedItemTimestampGt {
+  repeated google.protobuf.Timestamp val = 1
+      [(buf.validate.field).repeated.items.timestamp.gt = {seconds: 1000}];
 }
