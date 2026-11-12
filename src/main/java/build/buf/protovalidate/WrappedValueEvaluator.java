@@ -15,8 +15,17 @@
 package build.buf.protovalidate;
 
 import build.buf.protovalidate.exceptions.ExecutionException;
+import com.google.protobuf.BoolValue;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import com.google.protobuf.DoubleValue;
+import com.google.protobuf.FloatValue;
+import com.google.protobuf.Int32Value;
+import com.google.protobuf.Int64Value;
 import com.google.protobuf.Message;
+import com.google.protobuf.StringValue;
+import com.google.protobuf.UInt32Value;
+import com.google.protobuf.UInt64Value;
 import java.util.List;
 
 /**
@@ -63,7 +72,30 @@ final class WrappedValueEvaluator implements Evaluator {
       // proto3 message-typed field absent — no value to validate.
       return RuleViolation.NO_VIOLATIONS;
     }
-    Object innerValue = message.getField(innerField);
-    return inner.evaluate(new ObjectValue(innerField, innerValue), failFast);
+    return inner.evaluate(new ObjectValue(innerField, unwrap(message)), failFast);
+  }
+
+  /** Returns the wrapper's inner value, using getters for generated wrappers. */
+  private Object unwrap(Message message) {
+    if (message instanceof Int32Value) {
+      return ((Int32Value) message).getValue();
+    } else if (message instanceof Int64Value) {
+      return ((Int64Value) message).getValue();
+    } else if (message instanceof UInt32Value) {
+      return ((UInt32Value) message).getValue();
+    } else if (message instanceof UInt64Value) {
+      return ((UInt64Value) message).getValue();
+    } else if (message instanceof FloatValue) {
+      return ((FloatValue) message).getValue();
+    } else if (message instanceof DoubleValue) {
+      return ((DoubleValue) message).getValue();
+    } else if (message instanceof BoolValue) {
+      return ((BoolValue) message).getValue();
+    } else if (message instanceof StringValue) {
+      return ((StringValue) message).getValue();
+    } else if (message instanceof BytesValue) {
+      return ((BytesValue) message).getValue();
+    }
+    return message.getField(innerField);
   }
 }

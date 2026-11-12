@@ -19,7 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import build.buf.protovalidate.exceptions.ValidationException;
 import com.example.noimports.validationtest.Int64WrapperConst;
 import com.example.noimports.validationtest.StringWrapperLen;
+import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Int64Value;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.StringValue;
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +72,23 @@ class WrappedValueEvaluatorTest {
     assertThat(proto.getRuleId()).isEqualTo("string.min_len");
     // Field path points at the wrapper-typed field, not the synthetic inner "value".
     assertThat(proto.getField().getElements(0).getFieldName()).isEqualTo("val");
+  }
+
+  @Test
+  void dynamicWrapperMatchesGeneratedWrapper()
+      throws ValidationException, InvalidProtocolBufferException {
+    // Generated wrappers are unwrapped through their getters; a DynamicMessage wrapper takes the
+    // reflective fallback. Both must produce the same violation.
+    StringWrapperLen msg =
+        StringWrapperLen.newBuilder()
+            .setVal(StringValue.newBuilder().setValue("ab").build())
+            .build();
+    DynamicMessage dynamic =
+        DynamicMessage.parseFrom(StringWrapperLen.getDescriptor(), msg.toByteString());
+    assertThat(dynamic.getField(StringWrapperLen.getDescriptor().findFieldByName("val")))
+        .isInstanceOf(DynamicMessage.class);
+    assertThat(nativeValidator.validate(dynamic).toProto())
+        .isEqualTo(nativeValidator.validate(msg).toProto());
   }
 
   @Test
