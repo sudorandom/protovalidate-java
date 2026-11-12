@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import org.jspecify.annotations.Nullable;
 
 /** Defines custom function overloads (the implementation). */
 final class CustomOverload {
@@ -470,39 +471,58 @@ final class CustomOverload {
    * @return {@code true} if the list contains unique scalar values, {@code false} otherwise.
    */
   static boolean uniqueList(List<?> list) {
-    long size = list.size();
-    if (size == 0) {
+    int size = list.size();
+    if (size <= 1) {
       return true;
     }
-    Set<Object> exist = new HashSet<>((int) size);
-    for (Object val : list) {
-      // NaN corner case, ignore NaN, because each one should be treated as unique
-      // also handle 0 and -0 being equal to each other
-      if (val instanceof Double) {
-        Double valDouble = (Double) val;
-        if (valDouble.isNaN()) {
+    if (size <= 16) {
+      // For short lists, comparing every pair is cheaper than building a set.
+      for (int i = 1; i < size; i++) {
+        Object val = uniqueKey(list.get(i));
+        if (val == null) {
           continue;
         }
-        // should normalize 0 and -0
-        if (valDouble == 0.0) {
-          val = 0.0;
+        int hash = val.hashCode();
+        for (int j = 0; j < i; j++) {
+          Object other = uniqueKey(list.get(j));
+          if (other != null && hash == other.hashCode() && val.equals(other)) {
+            return false;
+          }
         }
       }
-      if (val instanceof Float) {
-        Float valFloat = (Float) val;
-        if (valFloat.isNaN()) {
-          continue;
-        }
-        // should normalize 0 and -0
-        if (valFloat == 0.0f) {
-          val = 0.0f;
-        }
-      }
-      if (!exist.add(val)) {
+      return true;
+    }
+    Set<Object> exist = new HashSet<>(size);
+    for (Object item : list) {
+      Object val = uniqueKey(item);
+      if (val != null && !exist.add(val)) {
         return false;
       }
     }
     return true;
+  }
+
+  /** Returns the item's comparison key, or null for NaN, which is always unique. */
+  private static @Nullable Object uniqueKey(Object val) {
+    if (val instanceof Double) {
+      Double valDouble = (Double) val;
+      if (valDouble.isNaN()) {
+        return null;
+      }
+      if (valDouble == 0.0) {
+        return 0.0;
+      }
+    }
+    if (val instanceof Float) {
+      Float valFloat = (Float) val;
+      if (valFloat.isNaN()) {
+        return null;
+      }
+      if (valFloat == 0.0f) {
+        return 0.0f;
+      }
+    }
+    return val;
   }
 
   /**

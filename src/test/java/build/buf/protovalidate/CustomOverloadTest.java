@@ -17,13 +17,16 @@ package build.buf.protovalidate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.google.protobuf.ByteString;
 import dev.cel.bundle.Cel;
 import dev.cel.common.CelAbstractSyntaxTree;
 import dev.cel.common.CelValidationException;
 import dev.cel.common.CelValidationResult;
 import dev.cel.runtime.CelEvaluationException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +66,38 @@ public class CustomOverloadTest {
     for (String testCase : Collections.singletonList("'foo'.isNan()")) {
       assertThatThrownBy(() -> evalToBool(testCase)).isInstanceOf(CelValidationException.class);
     }
+  }
+
+  @Test
+  public void testUniqueListShortAndLong() {
+    // Short lists are compared pairwise and long ones through a set; both must agree.
+    for (int size : new int[] {2, 16, 17, 40}) {
+      assertThat(CustomOverload.uniqueList(padded(size, 1.5, Double.NaN, Double.NaN))).isTrue();
+      assertThat(CustomOverload.uniqueList(padded(size, Float.NaN, Float.NaN))).isTrue();
+      assertThat(CustomOverload.uniqueList(padded(size, -0.0, 0.0))).isFalse();
+      assertThat(CustomOverload.uniqueList(padded(size, 0.0f, -0.0f))).isFalse();
+      assertThat(CustomOverload.uniqueList(padded(size, 2.5, 2.5))).isFalse();
+      assertThat(
+              CustomOverload.uniqueList(
+                  padded(size, ByteString.copyFromUtf8("ab"), ByteString.copyFromUtf8("ab"))))
+          .isFalse();
+      assertThat(
+              CustomOverload.uniqueList(
+                  padded(size, ByteString.copyFromUtf8("ab"), ByteString.copyFromUtf8("ba"))))
+          .isTrue();
+      assertThat(CustomOverload.uniqueList(padded(size, "a", "b"))).isTrue();
+      assertThat(CustomOverload.uniqueList(padded(size, "a", "a"))).isFalse();
+    }
+  }
+
+  /** Returns {@code size} items: distinct longs, ending with {@code tail}. */
+  private static List<Object> padded(int size, Object... tail) {
+    List<Object> list = new ArrayList<>();
+    for (long i = 0; list.size() < size - tail.length; i++) {
+      list.add(i);
+    }
+    list.addAll(Arrays.asList(tail));
+    return list;
   }
 
   @Test
