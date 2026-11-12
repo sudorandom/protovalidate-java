@@ -17,7 +17,6 @@ package build.buf.protovalidate;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
@@ -64,11 +63,6 @@ final class ListElementValue implements Value {
   @Override
   public Object rawValue() {
     return value;
-  }
-
-  @Override
-  public List<Value> repeatedValue() {
-    return Collections.emptyList();
   }
 
   @Override

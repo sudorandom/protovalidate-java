@@ -19,6 +19,7 @@ import build.buf.validate.FieldPath;
 import build.buf.validate.FieldPathElement;
 import build.buf.validate.FieldRules;
 import build.buf.validate.RepeatedRules;
+import com.google.protobuf.Descriptors;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -57,9 +58,13 @@ final class ListEvaluator implements Evaluator {
   public List<RuleViolation.Builder> evaluate(Value val, boolean failFast)
       throws ExecutionException {
     List<RuleViolation.Builder> allViolations = new ArrayList<>();
-    List<Value> repeatedValues = val.repeatedValue();
-    for (int i = 0; i < repeatedValues.size(); i++) {
-      List<RuleViolation.Builder> violations = itemRules.evaluate(repeatedValues.get(i), failFast);
+    // A repeated field reads as the list of its elements. Wrap each one as it
+    // is evaluated rather than first collecting a list of wrapped values.
+    List<?> items = (List<?>) val.rawValue();
+    Descriptors.FieldDescriptor descriptor = Objects.requireNonNull(val.fieldDescriptor());
+    for (int i = 0; i < items.size(); i++) {
+      List<RuleViolation.Builder> violations =
+          itemRules.evaluate(new ListElementValue(descriptor, items.get(i)), failFast);
       if (violations.isEmpty()) {
         continue;
       }

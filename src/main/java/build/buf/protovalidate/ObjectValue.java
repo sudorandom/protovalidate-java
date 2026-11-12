@@ -17,7 +17,6 @@ package build.buf.protovalidate;
 import com.google.protobuf.AbstractMessage;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -68,18 +67,6 @@ final class ObjectValue implements Value {
   @Override
   public Object rawValue() {
     return value;
-  }
-
-  @Override
-  public List<Value> repeatedValue() {
-    List<Value> out = new ArrayList<>();
-    if (fieldDescriptor.isRepeated()) {
-      List<?> list = (List<?>) value;
-      for (Object o : list) {
-        out.add(new ListElementValue(fieldDescriptor, o));
-      }
-    }
-    return out;
   }
 
   @Override
