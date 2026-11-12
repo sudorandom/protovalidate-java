@@ -119,7 +119,10 @@ final class EvaluatorBuilder {
    */
   Evaluator load(Descriptor desc) throws CompilationException {
     Evaluator evaluator = evaluatorCache.get(desc);
-    if (evaluator == null && disableLazy) {
+    if (evaluator != null) {
+      return evaluator;
+    }
+    if (disableLazy) {
       return new UnknownDescriptorEvaluator(desc);
     }
     return build(desc);
