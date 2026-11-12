@@ -17,7 +17,6 @@ package build.buf.protovalidate;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
 import java.util.List;
-import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -73,12 +72,4 @@ interface Value {
    *     list.
    */
   List<Value> repeatedValue();
-
-  /**
-   * Get the underlying value as a map.
-   *
-   * @return The underlying value as a map. Empty map is returned if the underlying type is not a
-   *     list.
-   */
-  Map<Value, Value> mapValue();
 }

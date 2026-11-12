@@ -20,12 +20,10 @@ import build.buf.validate.FieldPathElement;
 import build.buf.validate.FieldRules;
 import build.buf.validate.MapRules;
 import com.google.protobuf.Descriptors;
+import com.google.protobuf.Message;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /** Performs validation on a map field's key-value pairs. */
 final class MapEvaluator implements Evaluator {
@@ -108,15 +106,28 @@ final class MapEvaluator implements Evaluator {
   @Override
   public List<RuleViolation.Builder> evaluate(Value val, boolean failFast)
       throws ExecutionException {
-    List<RuleViolation.Builder> violations = new ArrayList<>();
-    Map<Value, Value> mapValue = val.mapValue();
-    for (Map.Entry<Value, Value> entry : mapValue.entrySet()) {
-      violations.addAll(evalPairs(entry.getKey(), entry.getValue(), failFast));
-      if (failFast && !violations.isEmpty()) {
-        return violations;
+    // Walk the entry messages directly, in entry order.
+    List<?> entries = (List<?>) val.rawValue();
+    List<RuleViolation.Builder> violations = null;
+    for (int i = 0; i < entries.size(); i++) {
+      Message entry = (Message) entries.get(i);
+      List<RuleViolation.Builder> pairViolations =
+          evalPairs(
+              new ObjectValue(keyFieldDescriptor, entry.getField(keyFieldDescriptor)),
+              new ObjectValue(valueFieldDescriptor, entry.getField(valueFieldDescriptor)),
+              failFast);
+      if (pairViolations.isEmpty()) {
+        continue;
       }
+      if (failFast) {
+        return pairViolations;
+      }
+      if (violations == null) {
+        violations = new ArrayList<>(pairViolations.size());
+      }
+      violations.addAll(pairViolations);
     }
-    if (violations.isEmpty()) {
+    if (violations == null) {
       return RuleViolation.NO_VIOLATIONS;
     }
     return violations;
@@ -124,10 +135,7 @@ final class MapEvaluator implements Evaluator {
 
   private List<RuleViolation.Builder> evalPairs(Value key, Value value, boolean failFast)
       throws ExecutionException {
-    List<RuleViolation.Builder> keyViolations =
-        keyEvaluator.evaluate(key, failFast).stream()
-            .map(violation -> violation.setForKey(true))
-            .collect(Collectors.toList());
+    List<RuleViolation.Builder> keyViolations = keyEvaluator.evaluate(key, failFast);
     final List<RuleViolation.Builder> valueViolations;
     if (failFast && !keyViolations.isEmpty()) {
       // Don't evaluate value rules if failFast is enabled and keys failed validation.
@@ -137,11 +145,13 @@ final class MapEvaluator implements Evaluator {
       valueViolations = valueEvaluator.evaluate(value, failFast);
     }
     if (keyViolations.isEmpty() && valueViolations.isEmpty()) {
-      return Collections.emptyList();
+      return RuleViolation.NO_VIOLATIONS;
     }
     List<RuleViolation.Builder> violations =
         new ArrayList<>(keyViolations.size() + valueViolations.size());
-    violations.addAll(keyViolations);
+    for (RuleViolation.Builder violation : keyViolations) {
+      violations.add(violation.setForKey(true));
+    }
     violations.addAll(valueViolations);
 
     FieldPathElement.Builder fieldPathElementBuilder =

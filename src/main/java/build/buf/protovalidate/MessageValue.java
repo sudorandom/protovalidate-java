@@ -18,7 +18,6 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.Message;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /** The {@link Value} type that contains a {@link com.google.protobuf.Message}. */
@@ -59,10 +58,5 @@ final class MessageValue implements Value {
   @Override
   public List<Value> repeatedValue() {
     return Collections.emptyList();
-  }
-
-  @Override
-  public Map<Value, Value> mapValue() {
-    return Collections.emptyMap();
   }
 }

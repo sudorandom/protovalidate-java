@@ -20,6 +20,10 @@ import build.buf.protovalidate.exceptions.ValidationException;
 import com.example.noimports.validationtest.ExampleMapMinMax;
 import com.example.noimports.validationtest.ExampleRepeatedMinMax;
 import com.example.noimports.validationtest.ExampleRepeatedUnique;
+import com.example.noimports.validationtest.MapStringWrapperValues;
+import com.google.protobuf.StringValue;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** Validator-level tests for {@link RepeatedRulesEvaluator} and {@link MapRulesEvaluator}. */
@@ -104,6 +108,22 @@ class RepeatedAndMapRulesEvaluatorTest {
     build.buf.validate.Violation proto = result.getViolations().get(0).toProto();
     assertThat(proto.getRuleId()).isEqualTo("map.max_pairs");
     assertThat(proto.getMessage()).isEqualTo("map must be at most 3 entries");
+  }
+
+  @Test
+  void mapEntryViolationsFollowEntryOrder() throws ValidationException {
+    // Every value violates min_len=3; violations must come back in entry order.
+    MapStringWrapperValues.Builder builder = MapStringWrapperValues.newBuilder();
+    List<String> keys = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      String key = "k" + i;
+      keys.add(key);
+      builder.putVal(key, StringValue.of("x"));
+    }
+    ValidationResult result = nativeValidator().validate(builder.build());
+    assertThat(result.getViolations())
+        .extracting(v -> v.toProto().getField().getElements(0).getStringKey())
+        .containsExactlyElementsOf(keys);
   }
 
   @Test
